@@ -1,10 +1,45 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function AIChatBox({ token }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Load previous AI chat messages from PostgreSQL
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/api/ai/history", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Failed to load AI chat history.");
+        }
+
+        const historyMessages = data.messages.map((message) => ({
+          id: message.id,
+          text: message.message,
+          sender: message.role === "user" ? "user" : "ai",
+        }));
+
+        setMessages(historyMessages);
+      } catch (err) {
+        console.error("Error loading AI history:", err);
+        setError("Failed to load previous AI messages.");
+      }
+    };
+
+    if (token) {
+      loadHistory();
+    }
+  }, [token]);
 
   const handleSend = async () => {
     const trimmedInput = input.trim();
@@ -26,6 +61,7 @@ function AIChatBox({ token }) {
     };
 
     setMessages((previousMessages) => [...previousMessages, userMessage]);
+
     setInput("");
 
     try {
@@ -35,7 +71,9 @@ function AIChatBox({ token }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message: trimmedInput }),
+        body: JSON.stringify({
+          message: trimmedInput,
+        }),
       });
 
       const data = await response.json();
@@ -81,7 +119,9 @@ function AIChatBox({ token }) {
           messages.map((message) => (
             <div
               key={message.id}
-              className={`ai-chat-message ${message.sender === "user" ? "user" : "ai"}`}
+              className={`ai-chat-message ${
+                message.sender === "user" ? "user" : "ai"
+              }`}
             >
               <span>{message.text}</span>
             </div>

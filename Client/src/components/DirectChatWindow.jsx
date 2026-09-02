@@ -4,6 +4,9 @@ import TypingIndicator from "./TypingIndicator";
 function DirectChatWindow({ recipient, user, token, socket, onCallInitiated }) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
 
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -153,6 +156,39 @@ function DirectChatWindow({ recipient, user, token, socket, onCallInitiated }) {
     onCallInitiated(recipient);
   };
 
+  // AI Analysis handler
+  const handleAIAnalysis = async () => {
+    if (!token || !recipient) return;
+
+    setAiLoading(true);
+    setAiError(null);
+
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/ai/analyze-dm/${recipient.id}?limit=100`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setAiAnalysis(data.analysis);
+      } else {
+        setAiError(data.message || "Failed to analyze conversation");
+      }
+    } catch (error) {
+      console.error("Error analyzing DM:", error);
+      setAiError("An error occurred while analyzing the conversation");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   return (
     <main className="chat-window">
       {/* Chat Header */}
@@ -168,15 +204,86 @@ function DirectChatWindow({ recipient, user, token, socket, onCallInitiated }) {
           </div>
         </div>
 
-        {/* 1-to-1 Voice Call Button */}
-        <button
-          className="call-button"
-          onClick={handleCall}
-          title={`Call ${recipient.username}`}
-        >
-          📞 Call
-        </button>
+        <div className="chat-header-buttons">
+          {/* 1-to-1 Voice Call Button */}
+          <button
+            className="call-button"
+            onClick={handleCall}
+            title={`Call ${recipient.username}`}
+          >
+            📞 Call
+          </button>
+
+          {/* AI Analysis Button */}
+          <button
+            className="ai-analyze-button"
+            onClick={handleAIAnalysis}
+            disabled={aiLoading}
+            title="Analyze conversation tone"
+          >
+            {aiLoading ? "⏳ Analyzing..." : "🤖 Analyze"}
+          </button>
+        </div>
       </div>
+
+      {/* AI Analysis Results */}
+      {(aiAnalysis || aiError) && (
+        <div className="ai-analysis-section">
+          {aiError ? (
+            <div className="ai-error">
+              <strong>Error:</strong> {aiError}
+            </div>
+          ) : (
+            <>
+              <div className="analysis-item">
+                <span className="analysis-label">Overall Tone:</span>
+                <span className="analysis-value">{aiAnalysis.overallTone}</span>
+              </div>
+
+              <div className="analysis-item">
+                <span className="analysis-label">Summary:</span>
+                <span className="analysis-value">{aiAnalysis.summary}</span>
+              </div>
+
+              <div className="analysis-item">
+                <span className="analysis-label">Recent Trend:</span>
+                <span className="analysis-value">{aiAnalysis.recentTrend}</span>
+              </div>
+
+              <div className="analysis-item">
+                <span className="analysis-label">Key Points:</span>
+                <ul className="key-points-list">
+                  {aiAnalysis.keyPoints &&
+                    aiAnalysis.keyPoints.map((point, idx) => (
+                      <li key={idx}>{point}</li>
+                    ))}
+                </ul>
+              </div>
+
+              <div className="analysis-item">
+                <span className="analysis-label">Tone Breakdown:</span>
+                <div className="tone-breakdown">
+                  <div className="tone-item">
+                    Calm: {aiAnalysis.toneBreakdown.calm}%
+                  </div>
+                  <div className="tone-item">
+                    Friendly: {aiAnalysis.toneBreakdown.friendly}%
+                  </div>
+                  <div className="tone-item">
+                    Neutral: {aiAnalysis.toneBreakdown.neutral}%
+                  </div>
+                  <div className="tone-item">
+                    Frustrated: {aiAnalysis.toneBreakdown.frustrated}%
+                  </div>
+                  <div className="tone-item">
+                    Aggressive: {aiAnalysis.toneBreakdown.aggressive}%
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Messages */}
       <div className="messages-container">

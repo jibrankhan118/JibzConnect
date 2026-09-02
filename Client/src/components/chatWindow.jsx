@@ -17,123 +17,75 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
   const [activeChannelCall, setActiveChannelCall] = useState(null);
   const [readReceipts, setReadReceipts] = useState({});
 
-  const typingTimeoutRef = useRef(null);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
 
-  // Scroll references
+  const typingTimeoutRef = useRef(null);
   const bottomRef = useRef(null);
   const messagesContainerRef = useRef(null);
-
-  // Keeps track of whether the user is near the bottom
   const isAtBottomRef = useRef(true);
 
   const channelName = selectedChannel?.name;
   const channelId = selectedChannel?.id;
 
-  /*
-   * FETCH CHANNEL MESSAGES
-   */
   useEffect(() => {
     const fetchMessages = async () => {
       try {
         const response = await fetch(
           `http://localhost:5000/api/messages?channel=${channelName}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
+          { headers: { Authorization: `Bearer ${token}` } },
         );
-
         const data = await response.json();
         const msgs = Array.isArray(data) ? data : [];
-
         setMessages(msgs);
         fetchReactionsForMessages(msgs);
       } catch (error) {
         console.error("Error:", error);
       }
     };
-
-    if (token && channelName) {
-      fetchMessages();
-    }
+    if (token && channelName) fetchMessages();
   }, [channelName, token]);
 
-  /*
-   * FETCH REACTIONS
-   */
+  useEffect(() => {
+    setAiAnalysis(null);
+    setAiError(null);
+  }, [channelId]);
+
   const fetchReactionsForMessages = async (msgs) => {
     try {
       const reactionMap = {};
-
       await Promise.all(
         msgs.map(async (msg) => {
           const res = await fetch(
             `http://localhost:5000/api/reactions/${msg.id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            },
+            { headers: { Authorization: `Bearer ${token}` } },
           );
-
           const data = await res.json();
-
           reactionMap[msg.id] = Array.isArray(data) ? data : [];
         }),
       );
-
       setReactions(reactionMap);
     } catch (error) {
       console.error("Error:", error);
     }
   };
 
-  /*
-   * SOCKET EVENTS
-   */
   useEffect(() => {
-    if (!token || !user || !channelName) {
-      return;
-    }
+    if (!token || !user || !channelName || !socket) return;
 
-    if (!socket) {
-      return;
-    }
+    const handleConnect = () => socket.emit("joinChannel", channelName);
+    if (socket.connected) handleConnect();
+    else socket.on("connect", handleConnect);
 
-    const handleConnect = () => {
-      socket.emit("joinChannel", channelName);
-    };
-
-    if (socket.connected) {
-      handleConnect();
-    } else {
-      socket.on("connect", handleConnect);
-    }
-
-    /*
-     * RECEIVE NEW MESSAGE
-     */
     const handleReceiveMessage = (newMessage) => {
-      if (newMessage.channel !== channelName) {
-        return;
-      }
-
+      if (newMessage.channel !== channelName) return;
       setMessages((prev) => {
         const alreadyExists = prev.some((msg) => msg.id === newMessage.id);
-
-        if (alreadyExists) {
-          return prev;
-        }
-
+        if (alreadyExists) return prev;
         return [...prev, newMessage];
       });
-
-      setReactions((prev) => ({
-        ...prev,
-        [newMessage.id]: [],
-      }));
-
+      setReactions((prev) => ({ ...prev, [newMessage.id]: [] }));
       setTimeout(() => {
         socket.emit("markMessageRead", {
           messageId: newMessage.id,
@@ -141,61 +93,33 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
         });
       }, 500);
     };
-
     socket.on("receiveMessage", handleReceiveMessage);
 
-    /*
-     * REACTION UPDATED
-     */
     const handleReactionUpdated = ({
       messageId,
       reactions: updatedReactions,
     }) => {
-      setReactions((prev) => ({
-        ...prev,
-        [messageId]: updatedReactions,
-      }));
+      setReactions((prev) => ({ ...prev, [messageId]: updatedReactions }));
     };
-
     socket.on("reactionUpdated", handleReactionUpdated);
 
-    /*
-     * READ RECEIPT
-     */
     const handleMessageReadReceipt = ({ messageId, readCount, totalUsers }) => {
       setReadReceipts((prev) => ({
         ...prev,
-        [messageId]: {
-          readCount,
-          totalUsers,
-        },
+        [messageId]: { readCount, totalUsers },
       }));
     };
-
     socket.on("messageReadReceipt", handleMessageReadReceipt);
 
-    /*
-     * INCOMING CHANNEL CALL
-     */
-    const handleIncomingChannelCall = (data) => {
-      setIncomingChannelCall(data);
-    };
-
+    const handleIncomingChannelCall = (data) => setIncomingChannelCall(data);
     socket.on("incomingChannelCall", handleIncomingChannelCall);
 
-    /*
-     * CHANNEL CALL ENDED
-     */
     const handleChannelCallEnded = () => {
       setActiveChannelCall(null);
       setIncomingChannelCall(null);
     };
-
     socket.on("channelCallEnded", handleChannelCallEnded);
 
-    /*
-     * CLEANUP SOCKET EVENTS
-     */
     return () => {
       socket.off("connect", handleConnect);
       socket.off("receiveMessage", handleReceiveMessage);
@@ -203,190 +127,116 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
       socket.off("messageReadReceipt", handleMessageReadReceipt);
       socket.off("incomingChannelCall", handleIncomingChannelCall);
       socket.off("channelCallEnded", handleChannelCallEnded);
-
       socket.emit("leaveChannel", channelName);
     };
   }, [channelName, token, user, socket]);
 
-  /*
-   * DETECT WHETHER USER IS AT THE BOTTOM
-   *
-   * If the user scrolls upward, this becomes false.
-   * If the user returns to the bottom, it becomes true.
-   */
   const handleMessagesScroll = (e) => {
     const container = e.currentTarget;
-
     const distanceFromBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight;
-
     isAtBottomRef.current = distanceFromBottom < 50;
   };
 
-  /*
-   * AUTO-SCROLL
-   *
-   * Only scroll to the bottom if the user was already
-   * near the bottom.
-   *
-   * If the user is reading older messages, do NOT
-   * force them back to the bottom.
-   */
   useEffect(() => {
     if (isAtBottomRef.current) {
-      bottomRef.current?.scrollIntoView({
-        behavior: "smooth",
-      });
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
 
-  /*
-   * SEND MESSAGE
-   */
   const handleSend = () => {
     const text = message.trim();
-
-    if (text === "" || !user || !token || !socket || !channelName) {
-      return;
-    }
-
+    if (text === "" || !user || !token || !socket || !channelName) return;
     socket.emit("sendMessage", {
       sender: user.username,
       message: text,
       channel: channelName,
     });
-
     setMessage("");
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    socket.emit("userTyping", {
-      channelName,
-      isTyping: false,
-    });
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    socket.emit("userTyping", { channelName, isTyping: false });
   };
 
-  /*
-   * ENTER KEY
-   */
   const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      handleSend();
-    }
+    if (e.key === "Enter") handleSend();
   };
 
-  /*
-   * USER TYPING
-   */
   const handleMessageChange = (e) => {
     setMessage(e.target.value);
-
-    if (!socket || !channelName) {
-      return;
-    }
-
-    socket.emit("userTyping", {
-      channelName,
-      isTyping: true,
-    });
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
+    if (!socket || !channelName) return;
+    socket.emit("userTyping", { channelName, isTyping: true });
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      socket.emit("userTyping", {
-        channelName,
-        isTyping: false,
-      });
+      socket.emit("userTyping", { channelName, isTyping: false });
     }, 2000);
   };
 
-  /*
-   * REACTION
-   */
   const handleReaction = (messageId, emoji) => {
-    if (!socket) {
-      return;
-    }
-
-    socket.emit("toggleReaction", {
-      messageId,
-      emoji,
-      channelName,
-    });
+    if (!socket) return;
+    socket.emit("toggleReaction", { messageId, emoji, channelName });
   };
 
-  /*
-   * GROUP REACTIONS
-   */
   const groupReactions = (messageId) => {
     const msgReactions = reactions[messageId] || [];
     const grouped = {};
-
     msgReactions.forEach((r) => {
-      if (!grouped[r.emoji]) {
-        grouped[r.emoji] = {
-          emoji: r.emoji,
-          count: 0,
-          userIds: [],
-        };
-      }
-
+      if (!grouped[r.emoji])
+        grouped[r.emoji] = { emoji: r.emoji, count: 0, userIds: [] };
       grouped[r.emoji].count += 1;
       grouped[r.emoji].userIds.push(r.userId);
     });
-
     return Object.values(grouped).map((g) => ({
       ...g,
       reactedByMe: g.userIds.includes(user.id),
     }));
   };
 
-  /*
-   * START CHANNEL CALL
-   */
   const initiateChannelCall = () => {
-    if (!socket) {
-      return;
-    }
-
+    if (!socket) return;
     socket.emit("initiateChannelCall", {
       channelName,
       callInitiatorId: user.id,
       callInitiatorName: user.username,
     });
-
     setActiveChannelCall(`${channelName}_${Date.now()}`);
-
     setIncomingChannelCall(null);
   };
 
-  /*
-   * JOIN CHANNEL CALL
-   */
   const joinChannelCall = () => {
-    if (!socket || !incomingChannelCall) {
-      return;
-    }
-
+    if (!socket || !incomingChannelCall) return;
     socket.emit("joinChannelCall", {
       callId: incomingChannelCall.callId,
       channelName: incomingChannelCall.channelName,
       userId: user.id,
       userName: user.username,
     });
-
     setActiveChannelCall(incomingChannelCall.callId);
-
     setIncomingChannelCall(null);
   };
 
-  /*
-   * ACTIVE CALL SCREEN
-   */
+  const handleAIAnalysis = async () => {
+    if (!token || !channelName) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/ai/analyze-channel/${channelName}?limit=100`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await response.json();
+      if (data.success) {
+        setAiAnalysis(data.analysis);
+      } else {
+        setAiError(data.message || "Failed to analyze conversation");
+      }
+    } catch (error) {
+      console.error("Error analyzing channel:", error);
+      setAiError("An error occurred while analyzing the conversation");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   if (activeChannelCall) {
     return (
       <ChannelActiveCallWindow
@@ -399,9 +249,6 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
     );
   }
 
-  /*
-   * INCOMING CALL SCREEN
-   */
   if (incomingChannelCall) {
     return (
       <ChannelCallModal
@@ -412,47 +259,94 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
     );
   }
 
-  /*
-   * MAIN CHAT WINDOW
-   */
   return (
     <main className="chat-window">
       <div className="chat-header">
         <div className="chat-title">
           <div className="channel-title-icon">#</div>
-
           <div>
             <h2>{channelName}</h2>
-
             <span>{messages.length} messages · Team channel</span>
           </div>
         </div>
 
-        <div className="chat-header-actions">
-          <button title="Search">🔍</button>
-
-          <button
-            onClick={initiateChannelCall}
-            style={{
-              padding: "8px 16px",
-              background: "#22c55e",
-              color: "#fff",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-              marginRight: "8px",
-            }}
-          >
+        <div className="chat-header-buttons">
+          <button className="call-button" onClick={initiateChannelCall}>
             📞 Call
           </button>
 
-          <button title="Members" onClick={() => setShowMembers(true)}>
-            👥
+          <button
+            className="ai-analyze-button"
+            onClick={handleAIAnalysis}
+            disabled={aiLoading}
+            title="Analyze channel tone"
+          >
+            {aiLoading ? "⏳ Analyzing..." : "🤖 Analyze"}
           </button>
 
-          <button title="More">⋮</button>
+          <div className="chat-header-actions">
+            <button title="Search">🔍</button>
+            <button title="Members" onClick={() => setShowMembers(true)}>
+              👥
+            </button>
+            <button title="More">⋮</button>
+          </div>
         </div>
       </div>
+
+      {(aiAnalysis || aiError) && (
+        <div className="ai-analysis-section">
+          {aiError ? (
+            <div className="ai-error">
+              <strong>Error:</strong> {aiError}
+            </div>
+          ) : (
+            <>
+              <div className="analysis-item">
+                <span className="analysis-label">Overall Tone:</span>
+                <span className="analysis-value">{aiAnalysis.overallTone}</span>
+              </div>
+              <div className="analysis-item">
+                <span className="analysis-label">Summary:</span>
+                <span className="analysis-value">{aiAnalysis.summary}</span>
+              </div>
+              <div className="analysis-item">
+                <span className="analysis-label">Recent Trend:</span>
+                <span className="analysis-value">{aiAnalysis.recentTrend}</span>
+              </div>
+              <div className="analysis-item">
+                <span className="analysis-label">Key Points:</span>
+                <ul className="key-points-list">
+                  {aiAnalysis.keyPoints &&
+                    aiAnalysis.keyPoints.map((point, idx) => (
+                      <li key={idx}>{point}</li>
+                    ))}
+                </ul>
+              </div>
+              <div className="analysis-item">
+                <span className="analysis-label">Tone Breakdown:</span>
+                <div className="tone-breakdown">
+                  <div className="tone-item">
+                    Calm: {aiAnalysis.toneBreakdown.calm}%
+                  </div>
+                  <div className="tone-item">
+                    Friendly: {aiAnalysis.toneBreakdown.friendly}%
+                  </div>
+                  <div className="tone-item">
+                    Neutral: {aiAnalysis.toneBreakdown.neutral}%
+                  </div>
+                  <div className="tone-item">
+                    Frustrated: {aiAnalysis.toneBreakdown.frustrated}%
+                  </div>
+                  <div className="tone-item">
+                    Aggressive: {aiAnalysis.toneBreakdown.aggressive}%
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <ChannelActivity
         channelName={channelName}
@@ -471,23 +365,15 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
             key={msg.id}
             onMouseEnter={() => setHoveredMessageId(msg.id)}
             onMouseLeave={() => setHoveredMessageId(null)}
-            style={{
-              position: "relative",
-            }}
+            style={{ position: "relative" }}
           >
             <div className="message-avatar">
               {msg.sender.charAt(0).toUpperCase()}
             </div>
 
-            <div
-              className="message-content"
-              style={{
-                flex: 1,
-              }}
-            >
+            <div className="message-content" style={{ flex: 1 }}>
               <div className="message-top">
                 <strong>{msg.sender}</strong>
-
                 <span>
                   {new Date(msg.createdAt).toLocaleTimeString([], {
                     hour: "2-digit",
@@ -593,11 +479,9 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
         <button className="composer-icon" title="Attachment">
           +
         </button>
-
         <button className="composer-icon" title="Emoji">
           😊
         </button>
-
         <input
           type="text"
           value={message}
@@ -605,11 +489,9 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
           onKeyDown={handleKeyDown}
           placeholder={`Message #${channelName}`}
         />
-
         <button className="voice-button" title="Voice">
           🎤
         </button>
-
         <button className="send-button" onClick={handleSend}>
           Send
         </button>

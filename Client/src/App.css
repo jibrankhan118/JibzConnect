@@ -1,6 +1,21 @@
 /* ================================
    GLOBAL
 ================================ */
+.app {
+  height: 100dvh;
+  min-height: 100dvh;
+}
+
+@media (max-width: 1400px) {
+  .ai-chat-panel {
+    display: none;
+  }
+}
+
+.content {
+  overflow-y: auto;
+}
+
 
 * {
   box-sizing: border-box;
@@ -214,24 +229,7 @@ button {
    NAVBAR
 ================================ */
 
-.navbar {
-  height: 70px;
-  min-height: 70px;
-  flex: 0 0 70px;
-}
-
-
-.navbar h1 {
-  margin: 0;
-  font-size: 22px;
-  color: #ffffff;
-}
-
-.navbar p {
-  margin: 0;
-  color: #9ca3af;
-  font-size: 14px;
-}
+/* Navbar: consolidated definition below */
 
 /* ================================
    CONTENT
@@ -416,9 +414,10 @@ button {
   flex: 1;
   display: flex;
   flex-direction: column;
-
+   min-height: 0;
   min-width: 0;
   background: #111827;
+  overflow-y: auto;
 }
 
 /* ================================
@@ -553,6 +552,9 @@ button {
 
   background: #151c2e;
   border-bottom: 1px solid #273249;
+
+  position: relative;
+  z-index: 5;
 }
 /* Brand */
 
@@ -1088,6 +1090,13 @@ button {
   border-bottom: 1px solid #273249;
 
   background: #111827;
+
+  min-width: 0;
+  overflow: visible;
+  top: 0;
+  position: sticky;
+  z-index: 10;
+   border: 5px solid red !important;   /* TEMP - for debugging */
 }
 
 .chat-title {
@@ -1095,6 +1104,9 @@ button {
   align-items: center;
 
   gap: 12px;
+
+  flex: 1;
+  min-width: 0;
 }
 
 .channel-title-icon {
@@ -1144,6 +1156,11 @@ button {
   align-items: center;
 
   gap: 6px;
+
+  flex-shrink: 0;
+
+  position: relative;
+  z-index: 11;
 }
 
 .chat-header-actions button {
@@ -1283,6 +1300,128 @@ button {
   border-top: 1px solid #273249;
 
   background: #151c2e;
+}
+
+
+/* =========================================
+   AI ANALYSIS STYLES
+========================================= */
+
+.chat-header-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.call-button {
+  padding: 8px 16px;
+  background: #22c55e;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: 0.2s ease;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.call-button:hover {
+  background: #16a34a;
+}
+
+.call-button:active {
+  transform: scale(0.97);
+}
+
+.ai-analyze-button {
+  padding: 8px 16px;
+  background: #7c3aed;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: 0.2s ease;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ai-analyze-button:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.ai-analyze-button:disabled {
+  background: #6b7280;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.ai-analysis-section {
+  padding: 16px 28px;
+  border-bottom: 1px solid #273249;
+  background: rgba(124, 58, 237, 0.05);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.ai-error {
+  color: #f87171;
+  font-size: 13px;
+  padding: 12px;
+  background: rgba(248, 113, 113, 0.1);
+  border-radius: 6px;
+  border-left: 3px solid #f87171;
+}
+
+.analysis-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.analysis-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.analysis-value {
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+.key-points-list {
+  margin: 8px 0 0 20px;
+  padding: 0;
+  font-size: 13px;
+  color: #d1d5db;
+}
+
+.key-points-list li {
+  margin: 4px 0;
+}
+
+.tone-breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.tone-item {
+  padding: 8px;
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 2px solid #3b82f6;
+  font-size: 13px;
+  color: #d1d5db;
+  border-radius: 4px;
 }
 
 
@@ -1703,6 +1842,8 @@ justify-content: center;
   .chat-header-actions button { width: 34px; height: 34px; }
   .chat-header-actions button:first-child,
   .chat-header-actions button:last-child { display: none; }
+  .call-button,
+  .ai-analyze-button { padding: 6px 12px; font-size: 13px; }
   .message-composer { flex-wrap: wrap; }
   .message-composer input { order: -1; flex: 1 1 calc(100% - 74px); }
   .send-button { order: -1; min-width: 62px; padding: 0 14px; }
