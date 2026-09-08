@@ -6,15 +6,18 @@
   min-height: 100dvh;
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1000px) {
   .ai-chat-panel {
-    display: none;
+    display: none !important;
   }
 }
 
-.content {
-  overflow-y: auto;
+@media (max-width: 1200px) {
+  .ai-chat-panel {
+    display: none !important;
+  }
 }
+
 
 
 * {
@@ -723,14 +726,21 @@ button {
 
 .sidebar {
   width: 270px;
+  min-width: 270px;
+  max-width: 270px;
 
   display: flex;
   flex-direction: column;
 
   padding: 14px 12px 10px;
+  margin: 0;
 
   background: #151c2e;
   border-right: 1px solid #273249;
+
+  overflow: hidden;  /* ← BLOCK SCROLLING */
+  min-height: 0;
+  flex-shrink: 0;
 }
 
 
@@ -805,6 +815,8 @@ button {
 
 .sidebar-section {
   margin-bottom: 22px;
+  overflow-y: auto;
+  max-height: calc(100vh - 400px);
 }
 
 .section-title {
@@ -1096,7 +1108,7 @@ button {
   top: 0;
   position: sticky;
   z-index: 10;
-   border: 5px solid red !important;   /* TEMP - for debugging */
+  
 }
 
 .chat-title {

@@ -134,13 +134,15 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
   const handleMessagesScroll = (e) => {
     const container = e.currentTarget;
     const distanceFromBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
-    isAtBottomRef.current = distanceFromBottom < 50;
+      container.scrollHeight - (container.scrollTop + container.clientHeight);
+    isAtBottomRef.current = distanceFromBottom < 100; // Increased threshold
   };
 
   useEffect(() => {
-    if (isAtBottomRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isAtBottomRef.current && bottomRef.current) {
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 0);
     }
   }, [messages]);
 

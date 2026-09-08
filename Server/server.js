@@ -20,6 +20,9 @@ const Message = require("./models/Message");
 const User = require("./models/User");
 const UserPresence = require("./models/UserPresence");
 const MessageRead = require("./models/MessageRead");
+const KnowledgeDocument = require("./models/KnowledgeDocument");
+const knowledgeRoutes = require("./routes/knowledgeRoutes");
+const { startKnowledgeWatcher } = require("./services/knowledgeWatcher");
 
 const app = express();
 const PORT = 5000;
@@ -54,6 +57,7 @@ app.use("/api/reactions", reactionRoutes);
 app.use("/api/presence", presenceRoutes);
 app.use("/api/ai", aiRoutes);
 app.get("/", (req, res) => res.send("JibzConnect API is running!"));
+app.use("/api/knowledge", knowledgeRoutes);
 
 io.on("connection", (socket) => {
   const token = socket.handshake.auth?.token;
@@ -362,11 +366,14 @@ io.on("connection", (socket) => {
     }
   });
 });
-
+// RAG watcher test
 const startServer = async () => {
   try {
     await sequelize.authenticate();
     await sequelize.sync({ alter: true });
+   
+     startKnowledgeWatcher();
+
     server.listen(PORT, () => console.log(`Server on port ${PORT}`));
   } catch (error) {
     console.error("Error:", error);

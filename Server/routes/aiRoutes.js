@@ -1,7 +1,7 @@
 
 const express = require("express");
 const router = express.Router();
-const { GoogleGenAI } = require("@google/genai");
+
 
 const authMiddleware = require("../middleware/authMiddleware");
 const DirectMessage = require("../models/DirectMessage");
@@ -9,15 +9,42 @@ const Channel = require("../models/Channel");
 const ChannelMember = require("../models/ChannelMember");
 const Message = require("../models/Message");
 const AIMessage = require("../models/AIMessage");
+const { searchKnowledge } = require("../services/knowledgeSearch");
 
 router.use(authMiddleware);
 
-// Initialize Gemini API key
-const apiKey = process.env.GEMINI_API_KEY;
+// Initialize OpenRouter API key
+const apiKey = process.env.OPENROUTER_API_KEY;
+async function generateChatResponse(messages) {
+  const response = await fetch(
+    "https://openrouter.ai/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini",
+        messages,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data?.error?.message || "OpenRouter chat request failed."
+    );
+  }
+
+  return data?.choices?.[0]?.message?.content;
+}
 
 if (!apiKey) {
   console.error(
-    "Warning: GEMINI_API_KEY is not set in environment variables"
+    "Warning: OPENROUTER_API_KEY is not set in environment variables"
   );
 }
 
@@ -50,26 +77,79 @@ router.post("/chat", async (req, res) => {
     }
 
     const trimmedMessage = message.trim();
+    console.log("AI CHAT RECEIVED:", trimmedMessage);
+    // Initialize autoroutes client
+   await AIMessage.create({
+  userId: req.user.id,
+  role: "user",
+  message: trimmedMessage,
+});
 
-    // Initialize Gemini client
-    const ai = new GoogleGenAI({
-      apiKey: apiKey,
-    });
+const knowledgeResults = await searchKnowledge(trimmedMessage, 5);
 
-    // Save user's message
-    await AIMessage.create({
-      userId: req.user.id,
-      role: "user",
-      message: trimmedMessage,
-    });
+const knowledgeContext = knowledgeResults.length
+  ? knowledgeResults
+      .map(
+        (item, index) =>
+          `Knowledge ${index + 1}:
+Source: ${item.sourcePath}
+${item.content}`
+      )
+      .join("\n\n---\n\n")
+  : "No relevant project knowledge was found.";
 
-    // Send message to Gemini
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: trimmedMessage,
-    });
+const aiReply = await generateChatResponse([
+  {
+    role: "system",
+   content: `You are the AI assistant for JibzConnect.
 
-    const aiReply = response.text;
+You have access to two sources of information:
+
+1. YOUR GENERAL KNOWLEDGE
+
+You are allowed and expected to answer general questions using your normal knowledge.
+
+Examples of general questions:
+- What is Python?
+- What is JavaScript?
+- What is Node.js?
+- What is React?
+- What is PostgreSQL?
+- What is artificial intelligence?
+- What is an API?
+
+For general questions, answer normally using your general knowledge.
+
+DO NOT require the JibzConnect project knowledge to answer general questions.
+DO NOT say "I do not have enough information" simply because the project knowledge does not contain the answer.
+
+2. JIBZCONNECT PROJECT KNOWLEDGE
+
+When the user asks specifically about JibzConnect, its code, database, models, APIs, authentication, channels, messages, frontend, backend, or other project functionality, use the provided project knowledge as the primary source.
+
+Do not invent JibzConnect-specific details that are not supported by the project knowledge.
+
+IMPORTANT RULES:
+
+- If the question is general, answer it normally using your general knowledge.
+- If the question is about JibzConnect, use the project knowledge.
+- If the project knowledge is irrelevant to a general question, completely ignore it.
+- Never refuse a general knowledge question just because the project knowledge does not contain the answer.
+
+Here is the retrieved JibzConnect project knowledge:
+
+
+
+Project knowledge:
+${knowledgeContext}`,
+  },
+  {
+    role: "user",
+    content: trimmedMessage,
+  },
+]);
+
+   
 
     // Save Gemini response
     await AIMessage.create({
@@ -573,6 +653,64 @@ Return ONLY valid JSON, nothing else.`;
     return res.status(500).json({
       success: false,
       message: "Failed to analyze channel messages",
+    });
+  }
+});
+
+/*
+====================================================
+POST /embed
+Generate an embedding for text
+====================================================
+*/
+
+router.post("/embed", async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== "string" || !text.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Text cannot be empty.",
+      });
+    }
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        message: "AI service is not configured.",
+      });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey: apiKey,
+    });
+
+    const result = await ai.models.embedContent({
+      model: "gemini-embedding-001",
+      contents: text.trim(),
+    });
+
+    const embedding = result.embeddings?.[0]?.values;
+
+    if (!embedding) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to generate embedding.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      dimensions: embedding.length,
+      embedding: embedding,
+    });
+  } catch (error) {
+    console.error("Error generating embedding:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate embedding.",
     });
   }
 });
