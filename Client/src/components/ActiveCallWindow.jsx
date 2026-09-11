@@ -3,7 +3,9 @@ import SimplePeer from "simple-peer";
 
 function ActiveCallWindow({ recipient, socket, isInitiator, onEndCall }) {
   const [callDuration, setCallDuration] = useState(0);
-  const [callStatus, setCallStatus] = useState("Connecting...");
+  const [callStatus, setCallStatus] = useState(
+    isInitiator ? "Calling..." : "Connecting...",
+  );
   const [callError, setCallError] = useState("");
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -36,7 +38,9 @@ function ActiveCallWindow({ recipient, socket, isInitiator, onEndCall }) {
     const setupPeer = async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error("Microphone access is not supported by this browser.");
+          throw new Error(
+            "Microphone access is not supported by this browser.",
+          );
         }
 
         // Get user's microphone
@@ -97,7 +101,9 @@ function ActiveCallWindow({ recipient, socket, isInitiator, onEndCall }) {
         const handlePeerError = (error) => {
           console.error("Voice call peer error:", error);
           setCallStatus("Call error");
-          setCallError("The audio connection failed. You can end the call and try again.");
+          setCallError(
+            "The audio connection failed. You can end the call and try again.",
+          );
         };
 
         const handlePeerClose = () => {
@@ -187,6 +193,28 @@ function ActiveCallWindow({ recipient, socket, isInitiator, onEndCall }) {
     onEndCall();
   };
 
+  // Handle cancel during "Calling..." state (before answer)
+  const handleCancelCall = () => {
+    if (socket) {
+      socket.emit("endCall", { recipientId: recipient.id });
+    }
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+    }
+
+    if (peerRef.current && !peerRef.current.destroyed) {
+      peerRef.current.destroy();
+    }
+
+    onEndCall();
+  };
+
   const formatTime = (seconds) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -213,9 +241,26 @@ function ActiveCallWindow({ recipient, socket, isInitiator, onEndCall }) {
       {callError && <p style={callErrorStyle}>{callError}</p>}
 
       <div style={callControlsStyle}>
-        <button onClick={handleEndCall} style={endCallButtonStyle}>
-          ☎️ End Call
-        </button>
+        {callStatus === "Connecting..." || callStatus === "Calling..." ? (
+          <>
+            <button onClick={handleCancelCall} style={cancelCallButtonStyle}>
+              ✕ Cancel Call
+            </button>
+            <p
+              style={{ color: "#7f8ba3", fontSize: "12px", marginTop: "12px" }}
+            >
+              📞 Ringing...
+            </p>
+          </>
+        ) : callStatus === "Connected" ? (
+          <button onClick={handleEndCall} style={endCallButtonStyle}>
+            ☎️ End Call
+          </button>
+        ) : (
+          <button onClick={handleEndCall} style={endCallButtonStyle}>
+            ☎️ End Call
+          </button>
+        )}
       </div>
 
       <p style={{ textAlign: "center", color: "#aaa", marginTop: "20px" }}>
@@ -245,12 +290,25 @@ const callControlsStyle = {
   display: "flex",
   gap: "16px",
   marginTop: "20px",
+  flexDirection: "column",
+  alignItems: "center",
 };
 
 const endCallButtonStyle = {
   padding: "14px 32px",
   fontSize: "16px",
   backgroundColor: "#ef4444",
+  color: "#fff",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontWeight: "600",
+};
+
+const cancelCallButtonStyle = {
+  padding: "14px 32px",
+  fontSize: "16px",
+  backgroundColor: "#f97316",
   color: "#fff",
   border: "none",
   borderRadius: "8px",

@@ -1,5 +1,9 @@
 const express = require("express");
+const { getMessages, createMessage } = require("../controllers/messageController");
+const authMiddleware = require("../middleware/authMiddleware");
 const router = express.Router();
+
+if (false) {
 
 const Message = require("../models/Message");
 const Channel = require("../models/Channel");
@@ -109,5 +113,11 @@ router.post("/", async (req, res) => {
   }
 });
 
+
+}
+
+router.use(authMiddleware);
+router.get("/", getMessages);
+router.post("/", createMessage);
 
 module.exports = router;

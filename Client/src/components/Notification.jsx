@@ -102,6 +102,7 @@ function Notification({ socket, user, token }) {
       {/* Bell Icon */}
       <div style={bellContainerStyle}>
         <button
+          className="navbar-utility-button"
           onClick={() => setShowCenter(!showCenter)}
           style={bellButtonStyle}
           title="Notifications"
@@ -168,11 +169,6 @@ const bellContainerStyle = {
 
 const bellButtonStyle = {
   position: "relative",
-  background: "none",
-  border: "none",
-  fontSize: "24px",
-  cursor: "pointer",
-  padding: "8px",
 };
 
 const badgeStyle = {
@@ -195,13 +191,13 @@ const notificationCenterStyle = {
   position: "absolute",
   top: "45px",
   right: "0",
-  width: "350px",
-  maxHeight: "500px",
+  width: "min(350px, calc(100vw - 16px))",
+  maxHeight: "min(500px, calc(100dvh - 78px))",
   background: "#1e1e2e",
   border: "1px solid #303b55",
   borderRadius: "8px",
   boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
-  zIndex: 1000,
+  zIndex: 30,
   overflow: "hidden",
   display: "flex",
   flexDirection: "column",

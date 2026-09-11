@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Navbar from "../components/navbar";
 import Sidebar from "../components/sidebar";
 import ChatWindow from "../components/chatWindow";
@@ -19,15 +20,19 @@ function AppPage({
   setIsSidebarOpen,
   socket,
   incomingCall,
+  outgoingCallRecipient,
   activeCall,
   unreadCounts,
   onLogout,
   onCallInitiated,
+  onCancelOutgoingCall,
   onAcceptCall,
   onRejectCall,
   onEndCall,
   refreshChannels,
 }) {
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+
   return (
     <div className="app">
       <Navbar
@@ -37,6 +42,8 @@ function AppPage({
         isSidebarOpen={isSidebarOpen}
         socket={socket}
         token={token}
+        onOpenAI={() => setIsAIChatOpen(true)}
+        isAIChatOpen={isAIChatOpen}
       />
 
       <div className="content">
@@ -55,7 +62,15 @@ function AppPage({
           onClose={() => setIsSidebarOpen(false)}
         />
 
-        {activeCall ? (
+        {outgoingCallRecipient ? (
+          <main style={outgoingCallWindowStyle}>
+            <h2>Calling {outgoingCallRecipient.username}</h2>
+            <p style={{ color: "#cbd5e1" }}>Ringing...</p>
+            <button onClick={onCancelOutgoingCall} style={cancelCallButtonStyle}>
+              ✕ Cancel Call
+            </button>
+          </main>
+        ) : activeCall ? (
           <ActiveCallWindow
             recipient={activeCall.recipient}
             socket={socket}
@@ -84,7 +99,14 @@ function AppPage({
           </main>
         )}
 
-        <AIChatBox token={token} />
+        <AIChatBox
+          token={token}
+          user={user}
+          socket={socket}
+          onCallInitiated={onCallInitiated}
+          isOpen={isAIChatOpen}
+          onOpenChange={setIsAIChatOpen}
+        />
       </div>
 
       {incomingCall && (
@@ -97,5 +119,27 @@ function AppPage({
     </div>
   );
 }
+
+const outgoingCallWindowStyle = {
+  flex: 1,
+  background: "linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%)",
+  color: "#fff",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "40px 20px",
+};
+
+const cancelCallButtonStyle = {
+  padding: "14px 32px",
+  fontSize: "16px",
+  backgroundColor: "#f97316",
+  color: "#fff",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontWeight: "600",
+};
 
 export default AppPage;

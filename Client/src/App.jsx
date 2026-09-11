@@ -31,7 +31,7 @@ function AppContent() {
   const [socket, setSocket] = useState(null);
 
   const [incomingCall, setIncomingCall] = useState(null);
-  const [, setOutgoingCallRecipient] = useState(null);
+  const [outgoingCallRecipient, setOutgoingCallRecipient] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
 
   const [unreadCounts, setUnreadCounts] = useState({});
@@ -224,6 +224,13 @@ function AppContent() {
     setOutgoingCallRecipient(recipient);
   };
 
+  const handleCancelOutgoingCall = () => {
+    if (socket && outgoingCallRecipient) {
+      socket.emit("endCall", { recipientId: outgoingCallRecipient.id });
+    }
+    setOutgoingCallRecipient(null);
+  };
+
   const handleAcceptCall = () => {
     if (!socket || !incomingCall) return;
 
@@ -314,10 +321,12 @@ function AppContent() {
               setIsSidebarOpen={setIsSidebarOpen}
               socket={socket}
               incomingCall={incomingCall}
+              outgoingCallRecipient={outgoingCallRecipient}
               activeCall={activeCall}
               unreadCounts={unreadCounts}
               onLogout={handleLogout}
               onCallInitiated={handleCallInitiated}
+              onCancelOutgoingCall={handleCancelOutgoingCall}
               onAcceptCall={handleAcceptCall}
               onRejectCall={handleRejectCall}
               onEndCall={handleEndCall}

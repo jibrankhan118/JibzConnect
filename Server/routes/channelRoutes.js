@@ -1,5 +1,10 @@
 const express = require("express");
+const { createChannel, getChannels, getChannelMembers, addChannelMember, removeChannelMember, updateChannelMemberRole } = require("../controllers/channelController");
+const authMiddleware = require("../middleware/authMiddleware");
+const requireChannelAdmin = require("../middleware/channelAdminMiddleware");
 const router = express.Router();
+
+if (false) {
 
 const Channel = require("../models/Channel");
 const ChannelMember = require("../models/ChannelMember");
@@ -149,5 +154,15 @@ router.patch("/:id/members/:userId/role", requireChannelAdmin, async (req, res) 
     res.status(500).json({ message: "Server error updating role." });
   }
 });
+
+}
+
+router.use(authMiddleware);
+router.post("/", createChannel);
+router.get("/", getChannels);
+router.get("/:id/members", getChannelMembers);
+router.post("/:id/members", requireChannelAdmin, addChannelMember);
+router.delete("/:id/members/:userId", requireChannelAdmin, removeChannelMember);
+router.patch("/:id/members/:userId/role", requireChannelAdmin, updateChannelMemberRole);
 
 module.exports = router;

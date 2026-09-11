@@ -35,10 +35,13 @@ const overlayStyle = {
 const modalStyle = {
   background: "#1e1e2e",
   color: "#fff",
-  padding: "40px",
+  width: "min(420px, calc(100vw - 24px))",
+  padding: "clamp(24px, 8vw, 40px)",
   borderRadius: "12px",
   textAlign: "center",
-  minWidth: "300px",
+  minWidth: 0,
+  maxHeight: "calc(100dvh - 24px)",
+  overflowY: "auto",
 };
 
 const buttonGroupStyle = {

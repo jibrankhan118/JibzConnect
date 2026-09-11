@@ -1,5 +1,9 @@
 const express = require("express");
+const { getAllPresence, getPresenceByUser, getLastSeen } = require("../controllers/presenceController");
+const authMiddleware = require("../middleware/authMiddleware");
 const router = express.Router();
+
+if (false) {
 const UserPresence = require("../models/UserPresence");
 const User = require("../models/User");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -44,5 +48,12 @@ router.get("/:userId/last-seen", async (req, res) => {
     res.status(500).json({ message: "Error fetching last seen" });
   }
 });
+
+}
+
+router.use(authMiddleware);
+router.get("/", getAllPresence);
+router.get("/:userId", getPresenceByUser);
+router.get("/:userId/last-seen", getLastSeen);
 
 module.exports = router;

@@ -1,5 +1,9 @@
 const express = require("express");
+const { getReactions, toggleReaction } = require("../controllers/reactionController");
+const authMiddleware = require("../middleware/authMiddleware");
 const router = express.Router();
+
+if (false) {
 
 const Reaction = require("../models/Reaction");
 const Message = require("../models/Message");
@@ -65,5 +69,11 @@ router.post("/", async (req, res) => {
     res.status(500).json({ message: "Server error toggling reaction." });
   }
 });
+
+}
+
+router.use(authMiddleware);
+router.get("/:messageId", getReactions);
+router.post("/", toggleReaction);
 
 module.exports = router;

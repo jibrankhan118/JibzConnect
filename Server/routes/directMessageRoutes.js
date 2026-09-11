@@ -1,5 +1,9 @@
 const express = require("express");
+const { getDirectMessages, createDirectMessage } = require("../controllers/directMessageController");
+const authMiddleware = require("../middleware/authMiddleware");
 const router = express.Router();
+
+if (false) {
 const { Op } = require("sequelize");
 
 const DirectMessage = require("../models/DirectMessage");
@@ -67,5 +71,11 @@ router.post("/", async (req, res) => {
     res.status(500).json({ message: "Server error sending direct message." });
   }
 });
+
+}
+
+router.use(authMiddleware);
+router.get("/:userId", getDirectMessages);
+router.post("/", createDirectMessage);
 
 module.exports = router;

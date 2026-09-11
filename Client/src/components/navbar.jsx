@@ -7,6 +7,8 @@ function Navbar({
   isSidebarOpen,
   socket,
   token,
+  onOpenAI,
+  isAIChatOpen,
 }) {
   return (
     <nav className="navbar">
@@ -37,6 +39,16 @@ function Navbar({
       <div className="navbar-user">
         {/* Bell Icon - Notifications */}
         <Notification socket={socket} user={user} token={token} />
+
+        <button
+          className={`navbar-ai-button${isAIChatOpen ? " is-active" : ""}`}
+          type="button"
+          onClick={onOpenAI}
+          aria-label="Open AI Assistant"
+          aria-pressed={isAIChatOpen}
+        >
+          AI
+        </button>
 
         <div className="user-info">
           <strong>{user?.username || "User"}</strong>

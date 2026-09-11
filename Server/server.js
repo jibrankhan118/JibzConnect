@@ -22,10 +22,9 @@ const UserPresence = require("./models/UserPresence");
 const MessageRead = require("./models/MessageRead");
 const KnowledgeDocument = require("./models/KnowledgeDocument");
 const knowledgeRoutes = require("./routes/knowledgeRoutes");
-const { startKnowledgeWatcher } = require("./services/knowledgeWatcher");
 
 const app = express();
-const PORT = 5000;
+const PORT = Number(process.env.PORT || 5000);
 
 const isMemberOfChannel = async (userId, channelName) => {
   if (typeof channelName !== "string" || !channelName.trim()) {
@@ -366,14 +365,11 @@ io.on("connection", (socket) => {
     }
   });
 });
-// RAG watcher test
 const startServer = async () => {
   try {
     await sequelize.authenticate();
     await sequelize.sync({ alter: true });
    
-     startKnowledgeWatcher();
-
     server.listen(PORT, () => console.log(`Server on port ${PORT}`));
   } catch (error) {
     console.error("Error:", error);
