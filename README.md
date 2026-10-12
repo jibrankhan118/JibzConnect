@@ -1,8 +1,10 @@
-# JibzConnect
+# JibzConnect — Agentic AI Communication Platform
 
-A full-stack real-time communication platform with direct messaging, channels, voice/video calling, notifications, presence, and an AI-powered action assistant with RAG capabilities.
+JibzConnect is a full-stack, real-time communication platform that combines direct messaging, channels, voice and video calling, user presence, notifications, and an **agentic AI assistant powered by Retrieval-Augmented Generation (RAG) and persistent AI memory**.
 
-## Features
+Unlike a conventional chatbot, JibzConnect's AI assistant can retrieve authorized application data and execute real application actions, including sending messages, creating channels, managing channel members, and initiating voice calls. Its memory system persists AI-related context in PostgreSQL, enabling continuity beyond a single conversation.
+
+## Key Features
 
 ### 💬 Real-Time Communication
 
@@ -11,13 +13,14 @@ A full-stack real-time communication platform with direct messaging, channels, v
 * Channel creation and management
 * Channel member management
 * Admin and member roles
-* Add/remove channel members
-* Promote/demote channel members
+* Add and remove channel members
+* Promote and demote channel members
 * Message search and retrieval
 * Message reactions
 * Typing indicators
 * Online/offline presence
 * Real-time notifications
+* Voice message recording and sending in direct messages and channels
 
 ### 📞 Voice & Video Calling
 
@@ -27,47 +30,96 @@ A full-stack real-time communication platform with direct messaging, channels, v
 * Incoming and outgoing call handling
 * Call acceptance and termination
 * Active call interface
+* AI-triggered voice call initiation through the existing calling workflow
 
-### 🤖 AI Assistant & Agenting
+### 👤 User Profile Management
 
-* AI-powered chat assistant
-* Application-aware AI assistance
+* Dedicated profile page
+* Profile viewing and editing
+* Responsive profile interface
+* Integration with the main application navigation
+
+### 🤖 Agentic AI Assistant
+
+JibzConnect integrates an application-aware AI assistant that combines conversational intelligence, live application data, RAG, persistent AI memory, and action execution.
+
+**AI capabilities include:**
+
+* Context-aware AI conversations
+* Application-aware assistance
 * RAG-based application knowledge retrieval
-* Access-controlled retrieval of channels, messages, and direct messages
+* Persistent AI memory backed by PostgreSQL
 * AI conversation history
-* AI user lookup
+* User lookup
+* Authorized direct-message retrieval
+* Channel and channel-message retrieval
+* Message search
 * AI-powered message sending
 * AI-powered channel creation
 * AI-powered channel member management
 * AI-powered channel deletion with confirmation
 * AI-powered member removal with confirmation
 * AI-triggered voice call initiation
-* Deterministic action routing with an allowlisted tool registry
 * Browser-based voice input
 * Manual AI response read-aloud
+* Allowlisted action execution
+* Confirmation for destructive actions
 
-### 🧠 RAG / Knowledge System
+The assistant is designed to bridge conversational AI and real application functionality, allowing users to interact with JibzConnect through natural-language requests.
+
+### 🧠 Persistent AI Memory
+
+JibzConnect includes a persistent AI memory system backed by PostgreSQL.
+
+* Stores AI-related memory persistently
+* Maintains AI conversation history
+* Supports continuity beyond the immediate conversation
+* Combines persistent memory with recent conversational context
+* Complements RAG-based knowledge retrieval and live application data access
+
+Persistent memory, conversation history, and RAG serve different purposes: memory preserves relevant AI context, conversation history retains previous interactions, and RAG retrieves relevant information from the knowledge base.
+
+### 📚 RAG & Knowledge System
+
+The Retrieval-Augmented Generation pipeline provides knowledge retrieval grounded in stored application information.
 
 * Application knowledge ingestion
 * Document chunking
 * Vector embeddings
-* PostgreSQL vector storage
+* PostgreSQL vector storage using pgvector
 * Similarity-based retrieval
-* User access filtering for private data
-* Channel and DM-aware knowledge retrieval
+* Access-controlled retrieval
+* User access filtering for private information
+* Channel and direct-message-aware knowledge retrieval
 * Knowledge synchronization endpoint
+
+The system uses embeddings and vector similarity to retrieve relevant knowledge for AI responses, with access filtering intended to protect private application data.
+
+### ✉️ Transactional Email
+
+JibzConnect uses SendGrid for transactional email delivery.
+
+* Welcome emails after successful user registration
+* Reusable email templates
+* Server-side email service
+* Environment-based email configuration
+* Best-effort email delivery
+
+Email delivery failure does not roll back an account that has already been successfully created.
 
 ### 🔐 Authentication & Security
 
 * JWT authentication
 * Protected REST APIs
 * Authenticated AI requests
-* User-scoped direct message access
+* User-scoped direct-message access
 * Channel membership authorization
-* Admin-only channel management actions
+* Admin-only channel management operations
+* Access-controlled knowledge retrieval
 * Confirmation required for destructive AI actions
+* Server-side storage of sensitive API credentials
 
-## Technologies
+## Technology Stack
 
 ### Frontend
 
@@ -84,68 +136,151 @@ A full-stack real-time communication platform with direct messaging, channels, v
 * Node.js
 * Express.js
 * Socket.IO
-* Sequelize
+* Sequelize ORM
 * PostgreSQL
-* JWT Authentication
+* JWT authentication
+* SendGrid
 
 ### AI & RAG
 
 * OpenRouter
-* OpenAI GPT-4o-mini
-* Google Gemini Embeddings
-* PostgreSQL `pgvector`
+* `openai/gpt-4o-mini` through OpenRouter
+* Google Gemini embeddings
+* PostgreSQL with pgvector
 * Retrieval-Augmented Generation (RAG)
+* Persistent AI memory
+* Deterministic action routing
+* Allowlisted tool registry
 
 ## AI Architecture
 
-JibzConnect uses an application-aware AI architecture combining conversational AI, RAG, live application data, and action execution.
+JibzConnect combines conversational AI, persistent memory, knowledge retrieval, live application data, and controlled action execution.
 
 ```text
 User
- │
- ▼
-React AI Chat
- │
- ▼
-AI API
- │
- ▼
-Authentication
- │
- ▼
-Action / Data Routing
- ├── Application Actions
- │    ├── Send Message
- │    ├── Create Channel
- │    ├── Manage Members
- │    ├── Delete Channel
- │    └── Start Voice Call
- │
- ├── Live Application Data
- │    ├── Channels
- │    ├── Direct Messages
- │    ├── Channel Messages
- │    └── Message Search
- │
- └── RAG
-      ├── Knowledge Retrieval
-      ├── Vector Search
-      └── Access Filtering
- │
- ▼
-LLM
- │
- ▼
-AI Response
+  |
+  v
+React AI Chat Interface
+  |
+  v
+Authenticated AI API
+  |
+  v
+AI Request Processing
+  |
+  +-----------------------------+
+  |                             |
+  v                             v
+Persistent AI Memory        Recent Chat History
+(PostgreSQL)                 (Conversation Context)
+  |                             |
+  +--------------+--------------+
+                 |
+                 v
+       Action / Data Routing
+                 |
+       +---------+----------+
+       |         |          |
+       v         v          v
+   Application  Live Data   RAG Pipeline
+     Actions    Retrieval       |
+       |         |              v
+       |         |         Vector Search
+       |         |              |
+       |         |              v
+       |         |         Access Filtering
+       |         |              |
+       +---------+--------------+
+                 |
+                 v
+             AI Model
+                 |
+                 v
+            AI Response
 ```
 
-The current implementation is an **early functional action agent with RAG**. It supports real application actions and protected application-data retrieval, while action routing is primarily handled through deterministic backend parsing and an allowlisted tool registry.
+### Action Execution
 
-## Transactional email
+The backend uses deterministic request parsing and an allowlisted tool registry to route supported requests to application operations.
 
-The backend uses SendGrid for the welcome email sent after registration. Email delivery is best-effort: a SendGrid outage or missing configuration does not roll back a successfully created account.
+Supported actions include:
 
-Add these values to `Server/.env` (the API key must never be added to the React app):
+* Sending messages
+* Creating and deleting channels
+* Adding and removing channel members
+* Retrieving channel and direct-message information
+* Searching messages
+* Looking up users
+* Initiating voice calls through the existing frontend calling workflow
+
+Destructive actions require confirmation.
+
+**Current architecture:** JibzConnect is an agentic AI application with real action-execution capabilities, RAG, and persistent memory. Action routing is primarily deterministic rather than based on native LLM function calling. General multi-step planning and autonomous tool selection remain areas for future development.
+
+## Real-Time Architecture
+
+Socket.IO handles real-time messaging, notifications, presence, typing indicators, and call signaling.
+
+```text
+React Client
+     |
+     v
+Socket.IO Client
+     |
+     v
+Node.js + Socket.IO Server
+     |
+     +-- Messaging
+     +-- Notifications
+     +-- Presence
+     +-- Typing Indicators
+     +-- Call Signaling
+              |
+              v
+            WebRTC
+              |
+              v
+        Voice / Video Calls
+```
+
+## Project Structure
+
+```text
+JibzConnect/
+|
++-- Client/
+|   +-- src/
+|       +-- components/
+|       |   +-- AIChatBox.jsx
+|       |   +-- ProfilePage.jsx
+|       |   +-- VoiceMessageRecorder.jsx
+|       |   +-- DirectChatWindow.jsx
+|       |   +-- chatWindow.jsx
+|       |
+|       +-- pages/
+|       +-- App.jsx
+|
++-- Server/
+    +-- controllers/
+    +-- routes/
+    +-- services/
+    |   +-- aiTools.js
+    |   +-- knowledgeSync.js
+    |   +-- emailService.js
+    |   +-- emailTemplates.js
+    +-- models/
+    +-- middleware/
+    +-- server.js
+    +-- .env.example
+```
+
+*Note: This is a representative overview of the project's main components, not an exhaustive listing of every file.*
+
+## Environment Configuration
+
+Create a `Server/.env` file using the project's environment template. Configure the required credentials and settings for your local environment.
+
+For transactional email, configure:
 
 ```env
 SENDGRID_API_KEY=
@@ -154,121 +289,59 @@ SENDGRID_FROM_NAME=JibzConnect
 CLIENT_URL=http://localhost:5173
 ```
 
-`SENDGRID_FROM_EMAIL` must be a sender verified in SendGrid. See `Server/.env.example` for the complete server environment template.
+* `SENDGRID_API_KEY` must contain your SendGrid API key.
+* `SENDGRID_FROM_EMAIL` must be a sender verified in SendGrid.
+* `SENDGRID_FROM_NAME` sets the displayed sender name.
+* `CLIENT_URL` specifies the frontend URL used by the application.
 
-## Project Structure
+Configure the remaining database, authentication, and AI environment variables according to `Server/.env.example` and the existing project configuration.
 
-```text
-JibzConnect/
-│
-├── Client/
-│   └── React frontend
-│
-└── Server/
-    ├── controllers/
-    ├── routes/
-    ├── services/
-    ├── models/
-    ├── middleware/
-    └── server.js
-```
+**Security note:** Never commit real API keys, passwords, JWT secrets, or other credentials. Keep secrets in server-side environment variables.
 
-## Core AI Components
+## Current AI Capability Status
 
-```text
-Client/src/components/AIChatBox.jsx
-Client/src/App.jsx
+| Capability                                | Status          |
+| ----------------------------------------- | --------------- |
+| General AI conversation                   | Implemented     |
+| Application-aware assistance              | Implemented     |
+| RAG-based knowledge retrieval             | Implemented     |
+| Persistent AI memory using PostgreSQL     | Implemented     |
+| AI conversation history                   | Implemented     |
+| User lookup and authorized data retrieval | Implemented     |
+| AI-powered message sending                | Implemented     |
+| AI-powered channel creation               | Implemented     |
+| AI-powered channel member management      | Implemented     |
+| AI-powered channel deletion               | Implemented     |
+| Destructive-action confirmation           | Implemented     |
+| AI-triggered voice call initiation        | Implemented     |
+| Browser-based voice input                 | Implemented     |
+| Manual AI response read-aloud             | Implemented     |
+| Native LLM function calling               | Not implemented |
+| General multi-step autonomous planning    | Limited         |
+| Automatic AI voice responses              | Not implemented |
+| AI-controlled frontend navigation         | Not implemented |
 
-Server/routes/aiRoutes.js
-Server/controllers/aiController.js
-Server/services/aiTools.js
+## Development Roadmap
 
-Server/services/knowledgeSync.js
-Server/controllers/knowledgeController.js
-Server/routes/knowledgeRoutes.js
-Server/models/KnowledgeDocument.js
-```
+Ongoing and potential improvements include:
 
-## Real-Time Architecture
+* More flexible multi-step agent planning
+* LLM-native function calling
+* Improved tool selection and execution feedback
+* Further RAG retrieval optimization
+* Enhanced persistent memory management
+* Expanded responsive UI and accessibility
+* More comprehensive API and end-to-end testing
+* Further improvements to real-time calling
 
-JibzConnect uses **Socket.IO** for real-time communication and signaling.
+## Project Status
 
-```text
-React Client
-     │
-     ▼
-Socket.IO Client
-     │
-     ▼
-Node.js + Socket.IO Server
-     │
-     ├── Messaging
-     ├── Notifications
-     ├── Presence
-     ├── Typing Indicators
-     └── Call Signaling
-              │
-              ▼
-          WebRTC
-              │
-              ▼
-       Voice / Video Call
-```
+JibzConnect is an actively developed full-stack communication platform with an agentic AI assistant, persistent AI memory, RAG-based knowledge retrieval, and real application action execution.
 
-## Security
-
-The application uses authentication and authorization throughout the platform.
-
-* JWT-protected API routes
-* Authenticated AI requests
-* User-scoped DM retrieval
-* Channel membership verification
-* Admin authorization for channel management
-* Protected message search
-* Access-controlled RAG retrieval
-* Confirmation before destructive AI actions
-
-## Current AI Agent Capabilities
-
-| Capability                       | Status     |
-| -------------------------------- | ---------- |
-| General AI conversation          | ✅          |
-| Application knowledge via RAG    | ✅          |
-| User lookup                      | ✅          |
-| DM retrieval                     | ✅          |
-| Channel retrieval                | ✅          |
-| Message search                   | ✅          |
-| Send DM through AI               | ✅          |
-| Create channel through AI        | ✅          |
-| Add channel member through AI    | ✅          |
-| Remove channel member through AI | ✅          |
-| Delete channel through AI        | ✅          |
-| Voice call initiation through AI | ✅          |
-| Voice input                      | ✅          |
-| Read Aloud                       | ✅          |
-| Persistent AI history            | ✅          |
-| Destructive-action confirmation  | ✅          |
-| General multi-step planning      | ⚠️ Limited |
-| LLM-native function calling      | ❌          |
-| Automatic AI voice responses     | ❌          |
-| AI frontend navigation           | ❌          |
-
-## Development Status
-
-JibzConnect is an actively developed full-stack project focused on combining real-time communication with application-aware AI agent capabilities.
-
-Current development areas include:
-
-* AI agent improvements
-* RAG optimization
-* Responsive UI
-* Real-time calling
-* Application-aware AI actions
-* QA and API testing
-* Improved multi-step agent workflows
+The project brings together real-time collaboration, user-facing communication tools, and application-aware AI capabilities in a single platform.
 
 ## Author
 
 **Jibran Jalil**
 
-GitHub: [JibzConnect](https://github.com/jibrankhan118/JibzConnect)
+GitHub Repository: https://github.com/jibrankhan118/JibzConnect
