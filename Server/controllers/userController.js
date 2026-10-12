@@ -4,6 +4,8 @@ const { Op } = require("sequelize");
 const User = require("../models/User");
 const Channel = require("../models/Channel");
 const ChannelMember = require("../models/ChannelMember");
+const { sendEmail } = require("../services/emailService");
+const { welcomeEmail } = require("../services/emailTemplates");
 
 const validateUsername = (username) => {
   if (!username) return "Username is required";
@@ -50,6 +52,9 @@ const register = async (req, res) => {
     const user = await User.create({ username, email, password: hashedPassword });
     const generalChannel = await Channel.findOne({ where: { name: "General" } });
     if (generalChannel) await ChannelMember.create({ userId: user.id, channelId: generalChannel.id, role: "member" });
+    const welcome = welcomeEmail({ username: user.username });
+    const emailResult = await sendEmail({ to: user.email, ...welcome });
+    if (!emailResult.success) console.warn("Welcome email was not sent:", emailResult.error);
     return res.status(201).json({ success: true, message: "User registered successfully", user: { id: user.id, username: user.username, email: user.email } });
   } catch (error) {
     console.error("Register error:", error);
@@ -84,4 +89,38 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getAllUsers };
+const getProfile = async (req, res) => {
+  const user = await User.findByPk(req.user.id, { attributes: { exclude: ["password"] } });
+  if (!user) return res.status(404).json({ success: false, message: "User not found." });
+  return res.json({ success: true, user });
+};
+
+const updateProfile = async (req, res) => {
+  try {
+    const { fullName, username, bio, title, avatarUrl } = req.body || {};
+    const nextUsername = typeof username === "string" ? username.trim() : "";
+    if (nextUsername.length < 3 || nextUsername.length > 20 || !/^[a-zA-Z0-9_]+$/.test(nextUsername)) {
+      return res.status(400).json({ success: false, message: "Username must be 3–20 characters using letters, numbers, or underscores." });
+    }
+    if (typeof avatarUrl === "string" && avatarUrl.length > 1200000) return res.status(400).json({ success: false, message: "Profile photo is too large." });
+    if (typeof avatarUrl === "string" && avatarUrl && !/^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=\r\n]+$/i.test(avatarUrl)) {
+      return res.status(400).json({ success: false, message: "Profile photo must be a supported image." });
+    }
+    const duplicate = await User.findOne({ where: { username: nextUsername, id: { [Op.ne]: req.user.id } } });
+    if (duplicate) return res.status(409).json({ success: false, message: "This username is already taken." });
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found." });
+    user.fullName = typeof fullName === "string" ? fullName.trim().slice(0, 80) : "";
+    user.username = nextUsername;
+    user.bio = typeof bio === "string" ? bio.trim().slice(0, 280) : "";
+    user.title = typeof title === "string" ? title.trim().slice(0, 80) : "";
+    user.avatarUrl = typeof avatarUrl === "string" ? avatarUrl : user.avatarUrl;
+    await user.save();
+    return res.json({ success: true, user: { id: user.id, username: user.username, email: user.email, fullName: user.fullName, bio: user.bio, title: user.title, avatarUrl: user.avatarUrl } });
+  } catch (error) {
+    console.error("Profile update error:", error);
+    return res.status(500).json({ success: false, message: "Unable to update profile." });
+  }
+};
+
+module.exports = { register, login, getAllUsers, getProfile, updateProfile };

@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import ChannelMembers from "./ChannelMembers";
 import ChannelCallModal from "./ChannelCallModal";
 import ChannelActiveCallWindow from "./ChannelActiveCallWindow";
 import TypingIndicator from "./TypingIndicator";
 import ChannelActivity from "./ChannelActivity";
+import { AudioMessage, VoiceMessageRecorder } from "./VoiceMessageRecorder";
 
 const ALLOWED_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "👏", "🎉"];
 
@@ -384,7 +385,7 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
                 </span>
               </div>
 
-              <p>{msg.message}</p>
+              {msg.messageType === "audio" ? <AudioMessage message={msg} /> : <p>{msg.message}</p>}
 
               {groupReactions(msg.id).length > 0 && (
                 <div
@@ -491,7 +492,14 @@ function ChatWindow({ selectedChannel, user, token, refreshChannels, socket }) {
           onKeyDown={handleKeyDown}
           placeholder={`Message #${channelName}`}
         />
-        <button className="voice-button" title="Voice">
+        <VoiceMessageRecorder onSend={(audio) => new Promise((resolve, reject) => {
+          if (!socket || !channelName) return reject(new Error("Messaging is unavailable."));
+          socket.emit("sendMessage", { sender: user.username, channel: channelName, messageType: "audio", ...audio }, (result) => {
+            if (result?.success) resolve();
+            else reject(new Error(result?.message || "Voice message could not be sent."));
+          });
+        })} />
+        <button className="voice-button legacy-voice-button" title="Voice" onClick={() => {}}>
           🎤
         </button>
         <button className="send-button" onClick={handleSend}>

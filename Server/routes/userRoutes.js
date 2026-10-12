@@ -1,5 +1,5 @@
 const express = require("express");
-const { register, login, getAllUsers } = require("../controllers/userController");
+const { register, login, getAllUsers, getProfile, updateProfile } = require("../controllers/userController");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -324,5 +324,7 @@ router.get("/", authMiddleware, async (req, res) => {
 router.post("/register", register);
 router.post("/login", login);
 router.get("/", authMiddleware, getAllUsers);
+router.get("/me", authMiddleware, getProfile);
+router.patch("/me", authMiddleware, updateProfile);
 
 module.exports = router;

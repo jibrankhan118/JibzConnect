@@ -14,6 +14,27 @@ const DirectMessage = sequelize.define("DirectMessage", {
     allowNull: false,
   },
 
+  messageType: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: "text",
+  },
+
+  audioUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  audioMimeType: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  audioDuration: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+
   senderId: {
     type: DataTypes.INTEGER,
     allowNull: false,

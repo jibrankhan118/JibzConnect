@@ -28,6 +28,27 @@ const Message = sequelize.define("Message", {
     allowNull: false,
   },
 
+  messageType: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: "text",
+  },
+
+  audioUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  audioMimeType: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
+  audioDuration: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+
   channel: {
     type: DataTypes.STRING,
     allowNull: false,

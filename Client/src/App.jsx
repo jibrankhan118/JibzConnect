@@ -331,6 +331,7 @@ function AppContent() {
               onRejectCall={handleRejectCall}
               onEndCall={handleEndCall}
               refreshChannels={fetchChannels}
+              onUserUpdated={setUser}
             />
           ) : (
             <Navigate to="/login" replace />

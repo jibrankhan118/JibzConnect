@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import TypingIndicator from "./TypingIndicator";
+import { AudioMessage, VoiceMessageRecorder } from "./VoiceMessageRecorder";
 
 function DirectChatWindow({ recipient, user, token, socket, onCallInitiated }) {
   const [message, setMessage] = useState("");
@@ -320,7 +321,7 @@ function DirectChatWindow({ recipient, user, token, socket, onCallInitiated }) {
                   </span>
                 </div>
 
-                <p>{msg.message}</p>
+                {msg.messageType === "audio" ? <AudioMessage message={msg} /> : <p>{msg.message}</p>}
               </div>
             </div>
           );
@@ -349,6 +350,14 @@ function DirectChatWindow({ recipient, user, token, socket, onCallInitiated }) {
           onKeyDown={handleKeyDown}
           placeholder={`Message ${recipient.username}`}
         />
+
+        <VoiceMessageRecorder onSend={(audio) => new Promise((resolve, reject) => {
+          if (!socket || !recipient) return reject(new Error("Messaging is unavailable."));
+          socket.emit("sendDirectMessage", { recipientId: recipient.id, messageType: "audio", ...audio }, (result) => {
+            if (result?.success) resolve();
+            else reject(new Error(result?.message || "Voice message could not be sent."));
+          });
+        })} />
 
         <button className="send-button" onClick={handleSend}>
           Send

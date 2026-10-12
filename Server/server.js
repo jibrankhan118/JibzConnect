@@ -4,6 +4,9 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const jwt = require("jsonwebtoken");
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
 const { Server } = require("socket.io");
 const Channel = require("./models/Channel");
 const ChannelMember = require("./models/ChannelMember");
@@ -25,6 +28,30 @@ const knowledgeRoutes = require("./routes/knowledgeRoutes");
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
+const audioDirectory = path.join(__dirname, "uploads", "audio");
+fs.mkdirSync(audioDirectory, { recursive: true });
+
+const AUDIO_TYPES = Object.freeze({
+  "audio/webm": "webm",
+  "audio/ogg": "ogg",
+  "audio/mp4": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+});
+const MAX_AUDIO_BYTES = 5 * 1024 * 1024;
+
+const saveAudioMessage = (audioData) => {
+  if (typeof audioData !== "string") throw new Error("Invalid audio data.");
+  const match = audioData.match(/^data:(audio\/[a-z0-9.+-]+)(?:;[^,]+)?;base64,([a-z0-9+/=\r\n]+)$/i);
+  const mimeType = match?.[1]?.toLowerCase();
+  if (!match || !AUDIO_TYPES[mimeType]) throw new Error("Unsupported audio format.");
+  const buffer = Buffer.from(match[2].replace(/\s/g, ""), "base64");
+  if (!buffer.length || buffer.length > MAX_AUDIO_BYTES) throw new Error("Audio file is too large.");
+  const filename = crypto.randomUUID() + "." + AUDIO_TYPES[mimeType];
+  fs.writeFileSync(path.join(audioDirectory, filename), buffer);
+  return { audioUrl: "/uploads/audio/" + filename, audioMimeType: mimeType };
+};
 
 const isMemberOfChannel = async (userId, channelName) => {
   if (typeof channelName !== "string" || !channelName.trim()) {
@@ -41,13 +68,15 @@ const isMemberOfChannel = async (userId, channelName) => {
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "http://localhost:5173", methods: ["GET", "POST"] },
+  maxHttpBufferSize: 6 * 1024 * 1024,
 });
 
 // Track which channel each user is viewing
 const userCurrentChannel = {};
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/channels", channelRoutes);
@@ -119,19 +148,25 @@ io.on("connection", (socket) => {
     }
   });
 //database message saving
-  socket.on("sendMessage", async (data) => {
+  socket.on("sendMessage", async (data, acknowledge) => {
     try {
       const { isMember } = await isMemberOfChannel(socket.user.id, data?.channel);
-      if (!isMember) return;
-      const messageText = data?.message?.trim();
-      if (!messageText) return;
+      if (!isMember) return acknowledge?.({ success: false, message: "You are not a member of this channel." });
+      const isAudio = data?.messageType === "audio";
+      const messageText = typeof data?.message === "string" ? data.message.trim() : "";
+      if (!isAudio && !messageText) return acknowledge?.({ success: false, message: "Message cannot be empty." });
+      const audio = isAudio ? saveAudioMessage(data.audioData) : {};
       const savedMessage = await Message.create({
         sender: socket.user.username,
         userId: socket.user.id,
-        message: messageText,
+        message: isAudio ? "Voice message" : messageText,
         channel: data.channel,
+        messageType: isAudio ? "audio" : "text",
+        ...audio,
+        audioDuration: isAudio ? Math.max(0, Number(data.audioDuration) || 0) : null,
       });
       io.to(data.channel).emit("receiveMessage", savedMessage);
+      acknowledge?.({ success: true });
 
       // Send notifications to users not in this channel
       const channelMembers = await ChannelMember.findAll({
@@ -145,31 +180,41 @@ io.on("connection", (socket) => {
           io.to(`user_${member.userId}`).emit("messageNotification", {
             senderUsername: socket.user.username,
             channelName: data.channel,
-            message: messageText,
+            message: isAudio ? "Voice message" : messageText,
             messageId: savedMessage.id,
           });
         }
       });
     } catch (error) {
       console.error("Error:", error);
+      acknowledge?.({ success: false, message: error.message || "Voice message could not be saved." });
     }
   });
 
-  socket.on("sendDirectMessage", async (data) => {
+  socket.on("sendDirectMessage", async (data, acknowledge) => {
     try {
       const recipientId = Number(data?.recipientId);
-      const messageText = data?.message?.trim();
-      if (!recipientId || !messageText) return;
+      const isAudio = data?.messageType === "audio";
+      const messageText = typeof data?.message === "string" ? data.message.trim() : "";
+      if (!recipientId || (!isAudio && !messageText)) return acknowledge?.({ success: false, message: "Message cannot be empty." });
       const recipient = await User.findByPk(recipientId);
-      if (!recipient) return;
+      if (!recipient) return acknowledge?.({ success: false, message: "Recipient not found." });
+      const audio = isAudio ? saveAudioMessage(data.audioData) : {};
       const savedMessage = await DirectMessage.create({
         senderId: socket.user.id,
         recipientId,
-        message: messageText,
+        message: isAudio ? "Voice message" : messageText,
+        messageType: isAudio ? "audio" : "text",
+        ...audio,
+        audioDuration: isAudio ? Math.max(0, Number(data.audioDuration) || 0) : null,
       });
       const payload = {
         id: savedMessage.id,
         message: savedMessage.message,
+        messageType: savedMessage.messageType,
+        audioUrl: savedMessage.audioUrl,
+        audioMimeType: savedMessage.audioMimeType,
+        audioDuration: savedMessage.audioDuration,
         senderId: socket.user.id,
         recipientId,
         senderUsername: socket.user.username,
@@ -177,15 +222,17 @@ io.on("connection", (socket) => {
       };
       io.to(`user_${recipientId}`).emit("receiveDirectMessage", payload);
       io.to(`user_${socket.user.id}`).emit("receiveDirectMessage", payload);
+      acknowledge?.({ success: true });
 
       // Send notification to recipient if not viewing DM with sender
       io.to(`user_${recipientId}`).emit("messageNotification", {
         senderUsername: socket.user.username,
-        message: messageText,
+        message: isAudio ? "Voice message" : messageText,
         type: "dm",
       });
     } catch (error) {
       console.error("Error:", error);
+      acknowledge?.({ success: false, message: error.message || "Voice message could not be saved." });
     }
   });
 

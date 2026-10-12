@@ -11,6 +11,7 @@ function Sidebar({
   token,
   refreshChannels,
   socket,
+  onOpenProfile,
 }) {
   const [userPresence, setUserPresence] = useState({});
 
@@ -200,7 +201,7 @@ function Sidebar({
           <strong>Jibz</strong>
           <span>Available</span>
         </div>
-        <button className="user-settings">⚙</button>
+        <button className="user-settings" onClick={onOpenProfile} title="Open profile">⚙</button>
       </div>
     </aside>
   );

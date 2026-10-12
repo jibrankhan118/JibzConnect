@@ -141,6 +141,21 @@ AI Response
 
 The current implementation is an **early functional action agent with RAG**. It supports real application actions and protected application-data retrieval, while action routing is primarily handled through deterministic backend parsing and an allowlisted tool registry.
 
+## Transactional email
+
+The backend uses SendGrid for the welcome email sent after registration. Email delivery is best-effort: a SendGrid outage or missing configuration does not roll back a successfully created account.
+
+Add these values to `Server/.env` (the API key must never be added to the React app):
+
+```env
+SENDGRID_API_KEY=
+SENDGRID_FROM_EMAIL=
+SENDGRID_FROM_NAME=JibzConnect
+CLIENT_URL=http://localhost:5173
+```
+
+`SENDGRID_FROM_EMAIL` must be a sender verified in SendGrid. See `Server/.env.example` for the complete server environment template.
+
 ## Project Structure
 
 ```text

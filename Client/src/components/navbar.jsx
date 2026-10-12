@@ -9,6 +9,7 @@ function Navbar({
   token,
   onOpenAI,
   isAIChatOpen,
+  onOpenProfile,
 }) {
   return (
     <nav className="navbar">
@@ -51,16 +52,16 @@ function Navbar({
         </button>
 
         <div className="user-info">
-          <strong>{user?.username || "User"}</strong>
+          <strong>{user?.fullName || user?.username || "User"}</strong>
           <span>
             <i className="online-dot"></i>
             Online
           </span>
         </div>
 
-        <div className="profile-avatar">
-          {(user?.username || "U").charAt(0).toUpperCase()}
-        </div>
+        <button className="profile-avatar profile-avatar-button" onClick={onOpenProfile} type="button" aria-label="Open your profile">
+          {user?.avatarUrl ? <img src={user.avatarUrl} alt="Your avatar" /> : (user?.fullName || user?.username || "U").charAt(0).toUpperCase()}
+        </button>
 
         <button className="logout-button" onClick={onLogout} type="button">
           Logout

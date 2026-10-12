@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../components/navbar";
 import Sidebar from "../components/sidebar";
 import ChatWindow from "../components/chatWindow";
@@ -6,6 +7,7 @@ import DirectChatWindow from "../components/DirectChatWindow";
 import IncomingCallModal from "../components/IncomingCallModal";
 import ActiveCallWindow from "../components/ActiveCallWindow";
 import AIChatBox from "../components/AIChatBox";
+import ProfilePage from "../components/ProfilePage";
 
 function AppPage({
   user,
@@ -30,8 +32,12 @@ function AppPage({
   onRejectCall,
   onEndCall,
   refreshChannels,
+  onUserUpdated,
 }) {
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isProfilePage = location.pathname === "/app/profile";
 
   return (
     <div className="app">
@@ -44,6 +50,7 @@ function AppPage({
         token={token}
         onOpenAI={() => setIsAIChatOpen(true)}
         isAIChatOpen={isAIChatOpen}
+        onOpenProfile={() => navigate("/app/profile")}
       />
 
       <div className="content">
@@ -60,9 +67,12 @@ function AppPage({
           unreadCounts={unreadCounts}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
+          onOpenProfile={() => navigate("/app/profile")}
         />
 
-        {outgoingCallRecipient ? (
+        {isProfilePage ? (
+          <ProfilePage user={user} token={token} onSaved={onUserUpdated} onCancel={() => navigate("/app")} />
+        ) : outgoingCallRecipient ? (
           <main style={outgoingCallWindowStyle}>
             <h2>Calling {outgoingCallRecipient.username}</h2>
             <p style={{ color: "#cbd5e1" }}>Ringing...</p>
